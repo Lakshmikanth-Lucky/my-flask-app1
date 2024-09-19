@@ -1,0 +1,37 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git 'https://github.com/<YOUR_USERNAME>/my-flask-app.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    docker.build("my-flask-app:${env.BUILD_ID}")
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    docker.withRegistry('https://<YOUR_ECR_REGISTRY>', 'aws-ecr-credentials') {
+                        docker.image("my-flask-app:${env.BUILD_ID}").push()
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    sh 'kubectl set image deployment/my-flask-app my-flask-app=my-flask-app:${env.BUILD_ID} --record'
+                }
+            }
+        }
+    }
+}
